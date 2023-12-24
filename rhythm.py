@@ -23,10 +23,6 @@ print("States:", states)
 
 import numpy as np
 
-num_states = len(states)
-transition_matrix = np.ones((num_states, num_states))  # Initialize with ones
-
-
 #Cases for the matrix
 #A triplet may only start on the beat (x.0), with the exception of 8th note triplets which can also start on the ands (x.5).
 #From any non-triplet, the chain has 0 probability of transitioning to note 2 or note 3 of a triplet. It can only transition to note 1 of a triplet.
@@ -36,9 +32,9 @@ transition_matrix = np.ones((num_states, num_states))  # Initialize with ones
 
 def is_valid_triplet_transition(current_state, next_state):
 
-    if "Triplet" not in next_state and "Triplet 3" in current_state:
+    if ("Triplet" not in next_state) and "Triplet 3" in current_state:
         return True
-    if "Triplet" not in next_state and "Triplet" in current_state: 
+    if ("Triplet" not in next_state) and "Triplet" in current_state: 
         return False
     
     # Check if both states are part of a triplet sequence
@@ -55,7 +51,7 @@ def is_valid_triplet_transition(current_state, next_state):
         next_triplet_num = int(next_state.split("Triplet ")[1].split()[0])
 
         # Check if the next state's triplet number is exactly one more than the current state's
-        return next_triplet_num == current_triplet_num + 1
+        return round(next_triplet_num,3) == current_triplet_num + 1
 
     return False
 
@@ -85,19 +81,23 @@ def is_regular_transition_allowed(current_state, next_state):
     # Implement logic for regular transitions, excluding dotted sixteenth and invalid triplets
     return True
 
+
+num_states = len(states)
+transition_matrix = np.ones((num_states, num_states))  # Initialize with ones
+
 # Setting probabilities
 for i, current_state in enumerate(states):
     for j, next_state in enumerate(states):
+
+        if "Dotted Sixteenth" in next_state: #Could include current state, but if that somehow happens it should go somewhere.
+            transition_matrix[i][j] = 0
+            continue
         if "Triplet" in current_state:
             if is_valid_triplet_transition(current_state, next_state):
                 transition_matrix[i][j] = 1  # or other probability as needed, normalize later
             else:
                 transition_matrix[i][j] = 0
                 continue
-
-        if "Dotted Sixteenth" in next_state: #Could include current state, but if that somehow happens it should go somewhere.
-            transition_matrix[i][j] = 0
-            continue
         else:
             if "Triplet 1" in next_state:
                 if is_triplet_start_allowed(current_state): 
@@ -108,9 +108,6 @@ for i, current_state in enumerate(states):
             if "Triplet 2" in next_state or "Triplet 3" in next_state:
                 transition_matrix[i][j] = 0
                 continue
-            elif is_regular_transition_allowed(current_state, next_state):
-                transition_matrix[i][j] = 1  # Regular transition probability, no more cases to check
-    
 
 # Normalize the matrix
 for i in range(num_states):
@@ -133,54 +130,69 @@ def calculate_duration(note):
 
     return duration if duration > 0 else rhythmic_values["Quarter"]  # Default duration
 
-def generate_n_notes(length=5):
+def generate_n_notes(length=10):
     rhythm = []
     current_beat = 1  # Start at Beat 1
 
     # Filter for states at Beat 1 that are either quarter or eighth notes
     possible_start_states = [state for state in states 
-                             if "Beat 1" in state and
+                             if round(float(state.split(" Beat ")[1]), 3) == 1.0 and
                              ("Quarter" in state or "Eighth" in state) and
                              "Triplet" not in state and 
                              "Dotted Eighth" not in state]
 
     if not possible_start_states:
-        print("Error: No starting states at Beat 1 that are quarter or eighth notes")
+        print("Error: No starting states at Beat 1 that meet starting criteria")
         return []
 
     current_state = np.random.choice(possible_start_states)
     current_state_index = states.index(current_state)
     rhythm.append(current_state)
 
+    # Update the current beat based on the chosen starting state
+    current_beat += calculate_duration(current_state)
+
     for _ in range(1, length):
-        # Calculate the next beat based on the duration of the current state
-        duration = calculate_duration(current_state)
-        current_beat += duration
-        current_beat = current_beat if current_beat <= time_signature[0] else current_beat % time_signature[0]
-
-        # Choose the next state based on the transition matrix probabilities
-        probabilities = transition_matrix[current_state_index]
-        next_state_index = np.random.choice(range(num_states), p=probabilities)
-        next_state = states[next_state_index]
-
-        # Append the next state to the rhythm and update the current state index
-        rhythm.append(next_state)
-        current_state_index = next_state_index
-        current_state = next_state
-
-        # Reset the current beat if it goes over the time signature limit
+        # Wrap the current beat if it exceeds the time signature
         if current_beat > time_signature[0]:
-            current_beat -= time_signature[0]
+            current_beat = (current_beat - 1) % time_signature[0] + 1
 
+        # Filter states based on the current beat
+        possible_states_indices = [i for i, state in enumerate(states)
+                                   if round(float(state.split(" Beat ")[1]), 3) == round(current_beat, 3)]
+
+        if not possible_states_indices:
+            print("Error/End: No valid states to choose from")
+            break
+
+        # Calculate the sum of probabilities for the filtered states
+        probabilities = [transition_matrix[current_state_index][i] for i in possible_states_indices]
+        probabilities_sum = sum(probabilities)
+
+        if probabilities_sum == 0:
+            print("Error/End: No valid transition")
+            break
+
+        # Normalize probabilities for the filtered states
+        normalized_probabilities = [p / probabilities_sum for p in probabilities]
+
+        # Choose the next state index from the filtered states based on normalized probabilities
+        current_state_index = np.random.choice(possible_states_indices, p=normalized_probabilities)
+        current_state = states[current_state_index]
+        
+        rhythm.append(current_state)
+
+        # Update the current beat based on the duration of the new current state
+        current_beat += calculate_duration(current_state)
         # Print states with positive probability for the next transition
-        '''
+        
         print("Current State:", current_state)
         print("Possible next states with their probabilities:")
         for idx, probability in enumerate(transition_matrix[current_state_index]):
             state_beat = round(float(states[idx].split(" Beat ")[1]), 3)
             if probability > 0 and state_beat == round(current_beat, 3):
                 print(f"    {states[idx]}: {probability}")
-        '''    
+            
 
     return rhythm
      
@@ -199,4 +211,92 @@ for i in range(num_states):
 sample_rhythm = generate_n_notes()
 print("Sample Rhythm:", sample_rhythm)
 
-print(is_valid_triplet_transition("Whole Triplet 1 Rest Beat 2.4166666666666665", "Whole Beat 1.4999999999999996"))
+
+def rhythm_to_lilypond(rhythm):
+    lilypond_notes = []
+    current_beat = 0.0
+
+    for r in rhythm:
+        note_type, beat_info = r.split(" Beat ")
+        duration = note_type.split()[0]
+
+        # Calculate the note duration in LilyPond format
+        if duration == "Whole":
+            lily_duration = "1"
+        elif duration == "Half":
+            lily_duration = "2"
+        elif duration == "Quarter":
+            lily_duration = "4"
+        elif duration == "Eighth":
+            lily_duration = "8"
+        elif duration == "Sixteenth":
+            lily_duration = "16"
+        elif duration == "Dotted Half":
+            lily_duration = "2."
+        elif duration == "Dotted Quarter":
+            lily_duration = "4."
+        elif duration == "Dotted Eighth":
+            lily_duration = "8."
+        elif duration == "Dotted Sixteenth":
+            lily_duration = "16."
+        else:
+            lily_duration = "4"  # Default to quarter note
+
+        # Identify if the current element is a note or a rest
+        is_rest = "Rest" in note_type
+
+        # Handle triplets
+        if "Triplet" in note_type:
+            if "1" in note_type:  # Start of triplet
+                lilypond_notes.append(f"\\tuplet 3/2 {{ c{'' if not is_rest else ','}{lily_duration}")
+            elif "2" in note_type:  # Middle of triplet
+                lilypond_notes.append(f"c{'' if not is_rest else ','}{lily_duration}")
+            elif "3" in note_type:  # End of triplet
+                lilypond_notes.append(f"c{'' if not is_rest else ','}{lily_duration} }}")
+        else:
+            # Append note or rest to the lilypond list
+            if is_rest:
+                lilypond_notes.append(f"r{lily_duration}")
+            else:
+                lilypond_notes.append(f"c'{lily_duration}")
+
+    return " ".join(lilypond_notes)
+
+
+lilypond_string = rhythm_to_lilypond(sample_rhythm)
+
+# This will produce a string like "c'4 c,8 c'4" that you can then embed into a LilyPond script
+print(lilypond_string)
+
+import subprocess
+import os
+from PIL import Image
+
+def display_music_lilypond(lilypond_string):
+    # Create a full LilyPond script
+    script = f"""
+    \\version "2.20.0"
+    \\score {{
+        \\new Staff {{
+            \\time 4/4
+            {lilypond_string}
+        }}
+        \\layout {{ }}
+        \\midi {{ }}
+    }}
+    """
+
+    # Write the script to a temporary file
+    with open("temp.ly", "w") as file:
+        file.write(script)
+
+    # Call LilyPond to compile the file
+    subprocess.run(["lilypond", "--png", "temp.ly"])
+
+    # Open and display the generated PNG file
+    img = Image.open("temp.png")
+    img.show()
+
+# Example usage
+display_music_lilypond(lilypond_string)
+
