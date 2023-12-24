@@ -30,6 +30,19 @@ import numpy as np
 #In the future, triplets could be able to go to other types of triplets while maintaining the original structure of the triplet, but that is too difficult right now.
 #The chance of moving or starting at a dotted sixteenth should be 0 (too hard).
 
+def calculate_duration(note):
+    """
+    Calculate the duration of a note.
+    """
+    duration = 1
+    multipliers = []
+    for val in rhythmic_values:
+        if val in note:
+            duration *= rhythmic_values[val]
+     
+
+    return duration if duration > 0 else rhythmic_values["Quarter"]  # Default duration
+
 def is_valid_triplet_transition(current_state, next_state):
 
     if ("Triplet" not in next_state) and "Triplet 3" in current_state:
@@ -79,7 +92,19 @@ def is_triplet_start_allowed(current_state):
 
 def is_regular_transition_allowed(current_state, next_state):
     # Implement logic for regular transitions, excluding dotted sixteenth and invalid triplets
-    return True
+    next_beat = float(next_state.split(" Beat ")[1])
+    next_note_type = next_state.split(" ")[0]
+
+    # Calculate the duration of the next note type
+    duration = calculate_duration(next_state)
+    
+    #print(f"next beat {next_beat}")
+    #print(f"duration {duration}")
+    #print((round(next_beat + duration,3) <= time_signature[0] + 1))
+
+    # Check if the addition would fit in the measure. If it doesn't, it should be an invalid next note. In 4/4, this would stop dotted whole notes.
+    return (round(next_beat + duration,3) <= time_signature[0] + 1)
+
 
 
 num_states = len(states)
@@ -88,6 +113,7 @@ transition_matrix = np.ones((num_states, num_states))  # Initialize with ones
 # Setting probabilities
 for i, current_state in enumerate(states):
     for j, next_state in enumerate(states):
+        
 
         if "Dotted Sixteenth" in next_state: #Could include current state, but if that somehow happens it should go somewhere.
             transition_matrix[i][j] = 0
@@ -108,6 +134,8 @@ for i, current_state in enumerate(states):
             if "Triplet 2" in next_state or "Triplet 3" in next_state:
                 transition_matrix[i][j] = 0
                 continue
+        if not is_regular_transition_allowed(current_state, next_state):
+            transition_matrix[i][j] = 0
 
 # Normalize the matrix
 for i in range(num_states):
@@ -116,19 +144,6 @@ for i in range(num_states):
         transition_matrix[i] /= row_sum
 
 print("Transition Matrix:\n", transition_matrix)
-
-def calculate_duration(note):
-    """
-    Calculate the duration of a note.
-    """
-    duration = 1
-    multipliers = []
-    for val in rhythmic_values:
-        if val in note:
-            duration *= rhythmic_values[val]
-     
-
-    return duration if duration > 0 else rhythmic_values["Quarter"]  # Default duration
 
 def generate_n_notes(length=10):
     rhythm = []
@@ -186,8 +201,9 @@ def generate_n_notes(length=10):
         current_beat += calculate_duration(current_state)
         # Print states with positive probability for the next transition
         
-        print("Current State:", current_state)
-        print("Possible next states with their probabilities:")
+        #print("Current State:", current_state)
+        #print("Possible next states with their probabilities:")
+        
         for idx, probability in enumerate(transition_matrix[current_state_index]):
             state_beat = round(float(states[idx].split(" Beat ")[1]), 3)
             if probability > 0 and state_beat == round(current_beat, 3):
@@ -300,3 +316,4 @@ def display_music_lilypond(lilypond_string):
 # Example usage
 display_music_lilypond(lilypond_string)
 
+print(is_regular_transition_allowed('Dotted Eighth Beat 2.5', 'Dotted Half Beat 3.2500000000000013'))
