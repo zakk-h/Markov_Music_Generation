@@ -8,7 +8,7 @@ rhythmic_values = {
 
 # States considering the beat position
 states = []
-time_signature = [4, 4]
+time_signature = [3, 4]
 #What interval is a divisor of both duple and triple time? If both 8th note triplets (3 notes lasting 1/2 beat total) and 16th notes (2 notes lasting 1/2 beat total), what is the minimum speed would I have to play for each to fall on one of my strokes?
 #This would be 6 notes per 1/2 beat or 12 notes per beat.
 gcd = 1/12  # Step for the loop
@@ -150,7 +150,12 @@ for i in range(num_states):
 
 print("Transition Matrix:\n", transition_matrix)
 
-def generate_n_notes(length=20):
+def normalize_beat(beat, time_signature):
+    # Normalize the beat to the nearest expected value, such as 1, 2, 3, or 4 in a 4/4 time signature
+    normalized_beat = round(beat * 12) / 12  # Assuming the smallest rhythmic element is a twelfth of a beat
+    return normalized_beat if normalized_beat <= time_signature[0] else normalized_beat % time_signature[0]
+
+def generate_n_notes(length=200):
     rhythm = []
     current_beat = 1  # Start at Beat 1
 
@@ -173,16 +178,14 @@ def generate_n_notes(length=20):
     current_beat += calculate_duration(current_state)
 
     for _ in range(1, length):
-        # Wrap the current beat if it exceeds the time signature
-        if current_beat > time_signature[0]:
-            current_beat = (current_beat - 1) % time_signature[0] + 1
-
+        current_beat = normalize_beat(current_beat, time_signature)
+        
         # Filter states based on the current beat
         possible_states_indices = [i for i, state in enumerate(states)
-                                   if round(float(state.split(" Beat ")[1]), 3) == round(current_beat, 3)]
+                                   if normalize_beat(float(state.split(" Beat ")[1]), time_signature) == current_beat]
 
         if not possible_states_indices:
-            print("Error/End: No valid states to choose from")
+            print(f"Error/End: No valid states to choose from at beat {current_beat}")
             break
 
         # Calculate the sum of probabilities for the filtered states
@@ -190,7 +193,7 @@ def generate_n_notes(length=20):
         probabilities_sum = sum(probabilities)
 
         if probabilities_sum == 0:
-            print("Error/End: No valid transition")
+            print(f"Error/End: No valid transition from {states[current_state_index]}")
             break
 
         # Normalize probabilities for the filtered states
@@ -204,19 +207,8 @@ def generate_n_notes(length=20):
 
         # Update the current beat based on the duration of the new current state
         current_beat += calculate_duration(current_state)
-        # Print states with positive probability for the next transition
-        
-        #print("Current State:", current_state)
-        #print("Possible next states with their probabilities:")
-        
-        for idx, probability in enumerate(transition_matrix[current_state_index]):
-            state_beat = round(float(states[idx].split(" Beat ")[1]), 3)
-            if probability > 0 and state_beat == round(current_beat, 3):
-                print(f"    {states[idx]}: {probability}")
-            
 
     return rhythm
-     
 
 # Normalize the transition matrix
 for i in range(num_states):
@@ -264,8 +256,14 @@ def rhythm_to_lilypond(rhythm):
         components = r.split()
         is_rest = "Rest" in components
         is_triplet = "Triplet" in r
-        note_type = components[0]
 
+        # Determine note type and handle dotted notes correctly
+        if "Dotted" in components:
+            note_type = "Dotted " + components[1]
+        else:
+            note_type = components[0]
+
+        print(note_type)
         # Adjust the note type for triplets
         if is_triplet:
             for triplet_type, adjusted_type in triplet_adjustment.items():
@@ -304,6 +302,7 @@ def rhythm_to_lilypond(rhythm):
     return " ".join(lilypond_notes)
 
 
+
 lilypond_string = rhythm_to_lilypond(sample_rhythm)
 
 # This will produce a string like "c'4 c,8 c'4" that you can then embed into a LilyPond script
@@ -314,12 +313,12 @@ import os
 from PIL import Image
 
 def display_music_lilypond(lilypond_string):
-    # Create a full LilyPond script
+    # Create a full LilyPond script with dynamic time signature
     script = f"""
     \\version "2.20.0"
     \\score {{
         \\new Staff {{
-            \\time 4/4
+            \\time {time_signature[0]}/{time_signature[1]}
             {lilypond_string}
         }}
         \\layout {{ }}
@@ -341,8 +340,3 @@ def display_music_lilypond(lilypond_string):
 # Example usage
 display_music_lilypond(lilypond_string)
 
-# Example usage
-sample_rhythm = ["Whole Triplet 1 Beat 1", "Whole Triplet 2 Beat 1", "Whole Triplet 3 Beat 1"]
-lilypond_triplet_string = rhythm_to_lilypond(sample_rhythm)
-print(lilypond_triplet_string)
-display_music_lilypond(lilypond_triplet_string)
