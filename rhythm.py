@@ -8,7 +8,18 @@ rhythmic_values = {
 
 # States considering the beat position
 states = []
-time_signature = [3, 4]
+
+def get_time_signature():
+    while True:
+        time_sig_input = input("Enter the time signature in the format x/y (e.g., 4/4 or 3/4): ")
+        try:
+            x, y = map(int, time_sig_input.split('/'))
+            return [x, y]
+        except ValueError:
+            print("Invalid format. Please enter the time signature as two integers separated by a slash (e.g., 4/4).")
+
+time_signature = get_time_signature()
+
 #What interval is a divisor of both duple and triple time? If both 8th note triplets (3 notes lasting 1/2 beat total) and 16th notes (2 notes lasting 1/2 beat total), what is the minimum speed would I have to play for each to fall on one of my strokes?
 #This would be 6 notes per 1/2 beat or 12 notes per beat.
 gcd = 1/12  # Step for the loop
@@ -142,11 +153,71 @@ for i, current_state in enumerate(states):
         if not is_regular_transition_allowed(current_state, next_state):
             transition_matrix[i][j] = 0
 
+def get_difficulty_level():
+    while True:
+        try:
+            difficulty_level = float(input(
+                "Enter the difficulty level (must be a number >= 1, decimals allowed):\n"
+                "1+ : Includes quarter, half, and whole notes.\n"
+                "2+ : Adds eighth notes.\n"
+                "3+ : Adds basic types of triplets.\n"
+                "...\n"
+                "7+ : Adds sixteenth notes.\n"
+                ">7 : More complex rhythms.\n"
+                "Enter difficulty level: "))
+
+            if difficulty_level >= 1:
+                return difficulty_level
+            else:
+                print("Please enter a number greater than or equal to 1.")
+        except ValueError:
+            print("Invalid input. Please enter a numerical value.")
+
+difficulty_level = get_difficulty_level()
+
+difficulty_divisors = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+difficulty_tiers = [0] + [difficulty_level / divisor for divisor in difficulty_divisors]
+difficulty_divisors = [0] + difficulty_divisors
+
+
+#'''
+for i, current_state in enumerate(states):
+    for j, next_state in enumerate(states):
+        if transition_matrix[i][j] > 0.01:
+            if "Triplet" in next_state: 
+                if "Quarter" in next_state and difficulty_level >= difficulty_divisors[3]:
+                    transition_matrix[i][j] = difficulty_tiers[3]   
+                elif "Half" in next_state and difficulty_level >= difficulty_divisors[6]:
+                    transition_matrix[i][j] = difficulty_tiers[6]     
+                elif "Whole" in next_state and difficulty_level >= difficulty_divisors[3]:
+                    transition_matrix[i][j] = difficulty_tiers[3]  
+                elif "Eighth" in next_state and difficulty_level >= difficulty_divisors[8]:
+                    transition_matrix[i][j] = difficulty_divisors[8]
+                else: 
+                    transition_matrix[i][j] = 0
+            elif "Dotted" in next_state:
+                    if "Whole" in next_state: transition_matrix[i][j] = difficulty_tiers[4] if difficulty_level >= difficulty_divisors[4] else 0
+                    elif "Half" in next_state: transition_matrix[i][j] = difficulty_tiers[4] if difficulty_level>=difficulty_divisors[4] else 0
+                    elif "Quarter" in next_state: transition_matrix[i][j] = difficulty_tiers[5] if difficulty_level>=difficulty_divisors[5] else 0
+                    elif "Eighth" in next_state: transition_matrix[i][j] = difficulty_tiers[9] if difficulty_level>=difficulty_divisors[9] else 0
+                    elif "Sixteenth" in next_state: transition_matrix[i][j] = 0 #needs to be a null event because nothing can always fill the remaining beats after a dotted 16th unless subdividing more with 32nds, etc.
+                    else: transition_matrix[i][j] = 0
+            else:
+                    if "Whole" in next_state: transition_matrix[i][j] = difficulty_tiers[1] if difficulty_level>=difficulty_divisors[1] else 0
+                    elif "Half" in next_state: transition_matrix[i][j] = difficulty_tiers[1] if difficulty_level>=difficulty_divisors[1] else 0
+                    elif "Quarter" in next_state: transition_matrix[i][j] = difficulty_tiers[1] if difficulty_level>=difficulty_divisors[1] else 0
+                    elif "Eighth" in next_state: transition_matrix[i][j] = difficulty_tiers[2] if difficulty_level>=difficulty_divisors[2] else 0
+                    elif "Sixteenth" in next_state: transition_matrix[i][j] = difficulty_tiers[7] if difficulty_level>=difficulty_divisors[7] else 0
+                    else: transition_matrix[i][j] = 0
+#'''
 # Normalize the matrix
 for i in range(num_states):
     row_sum = sum(transition_matrix[i])
     if row_sum > 0:
-        transition_matrix[i] /= row_sum
+        transition_matrix[i] = [p / row_sum for p in transition_matrix[i]]
+    else:
+        # Handle the case where the row sum is 0
+        transition_matrix[i] = [0 for _ in transition_matrix[i]]  # Keeping it as all 0s
 
 print("Transition Matrix:\n", transition_matrix)
 
@@ -160,11 +231,25 @@ def generate_n_notes(length=200):
     current_beat = 1  # Start at Beat 1
 
     # Filter for states at Beat 1 that are either quarter or eighth notes
-    possible_start_states = [state for state in states 
-                             if round(float(state.split(" Beat ")[1]), 3) == 1.0 and
-                             ("Quarter" in state or "Eighth" in state) and
-                             "Triplet" not in state and 
-                             "Dotted Eighth" not in state]
+    if difficulty_level <= 1:
+        possible_start_states = [state for state in states 
+                                if round(float(state.split(" Beat ")[1]), 3) == 1.0 and
+                                ("Quarter" in state) and
+                                "Dotted" not in state
+                                and "Triplet" not in state]
+    elif difficulty_level <= 5:
+        possible_start_states = [state for state in states 
+                                if round(float(state.split(" Beat ")[1]), 3) == 1.0 and
+                                ("Quarter" in state or "Eighth" in state) and
+                                "Triplet" not in state and 
+                                "Dotted Eighth" not in state and
+                                "Dotted Quarter" not in state]
+    else: 
+        possible_start_states = [state for state in states 
+                                if round(float(state.split(" Beat ")[1]), 3) == 1.0 and
+                                ("Quarter" in state or "Eighth" in state) and
+                                "Triplet" not in state and 
+                                "Dotted Eighth" not in state]
 
     if not possible_start_states:
         print("Error: No starting states at Beat 1 that meet starting criteria")
@@ -183,6 +268,7 @@ def generate_n_notes(length=200):
         # Filter states based on the current beat
         possible_states_indices = [i for i, state in enumerate(states)
                                    if normalize_beat(float(state.split(" Beat ")[1]), time_signature) == current_beat]
+        
 
         if not possible_states_indices:
             print(f"Error/End: No valid states to choose from at beat {current_beat}")
@@ -220,8 +306,21 @@ for i in range(num_states):
         transition_matrix[i] = [1.0 / num_states for _ in transition_matrix[i]]
 
 
+def get_number_of_notes():
+    while True:
+        try:
+            num_notes = int(input("Enter the number of notes (must be a positive integer greater than 1): "))
+            if num_notes > 1:
+                return num_notes
+            else:
+                print("The number must be greater than 1. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a positive integer.")
+
+num_notes = get_number_of_notes()
+
 # Generate a sample rhythm
-sample_rhythm = generate_n_notes()
+sample_rhythm = generate_n_notes(num_notes)
 print("Sample Rhythm:", sample_rhythm)
 
 
@@ -317,7 +416,7 @@ def display_music_lilypond(lilypond_string):
     script = f"""
     \\version "2.20.0"
     \\score {{
-        \\new Staff {{
+        \\new RhythmicStaff {{
             \\time {time_signature[0]}/{time_signature[1]}
             {lilypond_string}
         }}
@@ -326,16 +425,22 @@ def display_music_lilypond(lilypond_string):
     }}
     """
 
-    # Write the script to a temporary file
-    with open("temp.ly", "w") as file:
+    # Write the script to a file named "rhythm.ly"
+    with open("rhythm.ly", "w") as file:
         file.write(script)
 
-    # Call LilyPond to compile the file
-    subprocess.run(["lilypond", "--png", "temp.ly"])
+    # Call LilyPond to compile the file into a PNG image
+    subprocess.run(["lilypond", "--png", "-o", "rhythm", "rhythm.ly"])
 
     # Open and display the generated PNG file
-    img = Image.open("temp.png")
-    img.show()
+    if os.path.exists("rhythm.png"):
+        img = Image.open("rhythm.png")
+        img.show()
+    else:
+        print("Error: PNG file not found. Check LilyPond compilation.")
 
 # Example usage
 display_music_lilypond(lilypond_string)
+
+def return_for_pitch_generation():
+    return lilypond_string, time_signature, difficulty_level
