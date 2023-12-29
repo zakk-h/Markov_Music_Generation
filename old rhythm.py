@@ -108,7 +108,7 @@ def is_regular_transition_allowed(current_state, next_state):
     #print((round(next_beat + duration,3) <= time_signature[0] + 1))
 
     # Check if the addition would fit in the measure. If it doesn't, it should be an invalid next note. In 4/4, this would stop dotted whole notes.
-    return (round(next_beat + duration,3) <= time_signature[0] + 1)
+    return (round(next_beat + duration,3) <= round(time_signature[0] + 1, 3))
 
 
 
@@ -339,4 +339,3 @@ def display_music_lilypond(lilypond_string):
 
 # Example usage
 display_music_lilypond(lilypond_string)
-
