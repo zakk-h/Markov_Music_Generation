@@ -2,7 +2,7 @@ from rhythm import return_for_pitch_generation
 import numpy as np
 import random
 
-# Call the function
+# Fetch rhythm work
 lilypond_rhythm_string, time_signature, difficulty_level = return_for_pitch_generation()
 
 # Now you can use the lilypond_rhythm_string and time_signature
@@ -11,14 +11,17 @@ print(time_signature)
 
 notes = [1, 1.5, 2, 2.5, 3, 4, 4.5, 5, 5.5, 6, 6.5, 7] #notes in the scale are integers, accidentals are x.5
 notes_per_octave = len(notes)
-starting_note = 2
-num_notes = difficulty_level*3 # or a user controlled value
+lower_note_bound = 1 #lower bound of range
+
+if round(difficulty_level*2.6,1) > 2.1*notes_per_octave: num_notes = 2.1*notes_per_octave
+else: num_notes = round(difficulty_level*2.6,1) # or a user controlled value. a consequence of this value is the upper bound for the range
+
 if difficulty_level*2 > notes[-1]-notes[0]: max_jump = notes[-1]-notes[0]
 else: max_jump = difficulty_level*2
 
-def generate_possible_notes_in_range(notes, starting_note, num_notes):
+def generate_possible_notes_in_range(notes, lower_note_bound, num_notes):
     generated_notes = []
-    start_index = notes.index(starting_note)
+    start_index = notes.index(lower_note_bound)
 
     octave = 0
 
@@ -33,7 +36,7 @@ def generate_possible_notes_in_range(notes, starting_note, num_notes):
 
     return generated_notes
 
-notes_in_range = generate_possible_notes_in_range(notes, starting_note, num_notes)
+notes_in_range = generate_possible_notes_in_range(notes, lower_note_bound, num_notes)
 
 # Initialize the transition matrix
 num_states = len(notes_in_range)
@@ -47,9 +50,9 @@ for i in range(num_states):
             if note_diff == 0:
                 transition_matrix[i][j] = 1 / difficulty_level
             else:
-                transition_matrix[i][j] = 1 / note_diff
+                transition_matrix[i][j] = 1 / (note_diff**1.3) #encouraging notes to be in close proximity to each other
                 if not notes_in_range[j].is_integer():
-                    transition_matrix[i][j] /= 5
+                    transition_matrix[i][j] /= 5 #reducing frequency of accidentals
 
 # Normalize the rows of the matrix
 for i in range(num_states):

@@ -164,6 +164,7 @@ def get_difficulty_level():
                 "...\n"
                 "7+ : Adds sixteenth notes.\n"
                 ">7 : More complex rhythms.\n"
+                "For melodic components, in addition to the previous conditions, a higher difficulty will increase the note range and maximum jump.\n"
                 "Enter difficulty level: "))
 
             if difficulty_level >= 1:
@@ -195,6 +196,8 @@ for i, current_state in enumerate(states):
                     transition_matrix[i][j] = difficulty_divisors[8]
                 else: 
                     transition_matrix[i][j] = 0
+                if "Rest" in next_state: transition_matrix[i][j]/10 #make rests occur less frequently
+
             elif "Dotted" in next_state:
                     if "Whole" in next_state: transition_matrix[i][j] = difficulty_tiers[4] if difficulty_level >= difficulty_divisors[4] else 0
                     elif "Half" in next_state: transition_matrix[i][j] = difficulty_tiers[4] if difficulty_level>=difficulty_divisors[4] else 0
@@ -202,6 +205,8 @@ for i, current_state in enumerate(states):
                     elif "Eighth" in next_state: transition_matrix[i][j] = difficulty_tiers[9] if difficulty_level>=difficulty_divisors[9] else 0
                     elif "Sixteenth" in next_state: transition_matrix[i][j] = 0 #needs to be a null event because nothing can always fill the remaining beats after a dotted 16th unless subdividing more with 32nds, etc.
                     else: transition_matrix[i][j] = 0
+                    if "Rest" in next_state: transition_matrix[i][j]/10 #make rests occur less frequently
+
             else:
                     if "Whole" in next_state: transition_matrix[i][j] = difficulty_tiers[1] if difficulty_level>=difficulty_divisors[1] else 0
                     elif "Half" in next_state: transition_matrix[i][j] = difficulty_tiers[1] if difficulty_level>=difficulty_divisors[1] else 0
@@ -209,6 +214,7 @@ for i, current_state in enumerate(states):
                     elif "Eighth" in next_state: transition_matrix[i][j] = difficulty_tiers[2] if difficulty_level>=difficulty_divisors[2] else 0
                     elif "Sixteenth" in next_state: transition_matrix[i][j] = difficulty_tiers[7] if difficulty_level>=difficulty_divisors[7] else 0
                     else: transition_matrix[i][j] = 0
+                    if "Rest" in next_state: transition_matrix[i][j]/10 #make rests occur less frequently
 #'''
 # Normalize the matrix
 for i in range(num_states):
@@ -309,11 +315,11 @@ for i in range(num_states):
 def get_number_of_notes():
     while True:
         try:
-            num_notes = int(input("Enter the number of notes (must be a positive integer greater than 1): "))
-            if num_notes > 1:
+            num_notes = int(input("Enter the number of notes (must be a positive integer no less than 1): "))
+            if num_notes >= 1:
                 return num_notes
             else:
-                print("The number must be greater than 1. Please try again.")
+                print("The number must be no less than 1. Please try again.")
         except ValueError:
             print("Invalid input. Please enter a positive integer.")
 
