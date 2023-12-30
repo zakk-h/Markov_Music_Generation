@@ -196,7 +196,6 @@ for i, current_state in enumerate(states):
                     transition_matrix[i][j] = difficulty_divisors[8]
                 else: 
                     transition_matrix[i][j] = 0
-                if "Rest" in next_state: transition_matrix[i][j]/10 #make rests occur less frequently
 
             elif "Dotted" in next_state:
                     if "Whole" in next_state: transition_matrix[i][j] = difficulty_tiers[4] if difficulty_level >= difficulty_divisors[4] else 0
@@ -205,7 +204,6 @@ for i, current_state in enumerate(states):
                     elif "Eighth" in next_state: transition_matrix[i][j] = difficulty_tiers[9] if difficulty_level>=difficulty_divisors[9] else 0
                     elif "Sixteenth" in next_state: transition_matrix[i][j] = 0 #needs to be a null event because nothing can always fill the remaining beats after a dotted 16th unless subdividing more with 32nds, etc.
                     else: transition_matrix[i][j] = 0
-                    if "Rest" in next_state: transition_matrix[i][j]/10 #make rests occur less frequently
 
             else:
                     if "Whole" in next_state: transition_matrix[i][j] = difficulty_tiers[1] if difficulty_level>=difficulty_divisors[1] else 0
@@ -214,7 +212,9 @@ for i, current_state in enumerate(states):
                     elif "Eighth" in next_state: transition_matrix[i][j] = difficulty_tiers[2] if difficulty_level>=difficulty_divisors[2] else 0
                     elif "Sixteenth" in next_state: transition_matrix[i][j] = difficulty_tiers[7] if difficulty_level>=difficulty_divisors[7] else 0
                     else: transition_matrix[i][j] = 0
-                    if "Rest" in next_state: transition_matrix[i][j]/10 #make rests occur less frequently
+            
+            if "Rest" in next_state: transition_matrix[i][j]/=5 #make rests occur less frequently
+        
 #'''
 # Normalize the matrix
 for i in range(num_states):
@@ -368,7 +368,7 @@ def rhythm_to_lilypond(rhythm):
         else:
             note_type = components[0]
 
-        print(note_type)
+        #print(note_type)
         # Adjust the note type for triplets
         if is_triplet:
             for triplet_type, adjusted_type in triplet_adjustment.items():

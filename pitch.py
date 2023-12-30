@@ -50,7 +50,7 @@ for i in range(num_states):
             if note_diff == 0:
                 transition_matrix[i][j] = 1 / difficulty_level
             else:
-                transition_matrix[i][j] = 1 / (note_diff**1.3) #encouraging notes to be in close proximity to each other
+                transition_matrix[i][j] = 1 / (note_diff**1.2) #encouraging notes to be in close proximity to each other
                 if not notes_in_range[j].is_integer():
                     transition_matrix[i][j] /= 5 #reducing frequency of accidentals
 
