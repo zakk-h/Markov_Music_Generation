@@ -1,6 +1,9 @@
 from rhythm import return_for_pitch_generation, get_basics
 import numpy as np
 import random
+import pickle
+import gzip
+import os
 
 #Goal: In rhythm, caching 40 different matrices, for 2/4 through 5/4 time signatures with difficulty levels between 1 and 10 inclusive, integers.
 #Goal: In pitch, caching 10 different matrices, for the difficulty levels; time signature doesn't matter. These generate much faster, so it isn't a big deal either way.
@@ -69,7 +72,48 @@ def generate_pitch_matrix(difficulty_level):
 
     print(transition_matrix)
     return transition_matrix, notes_in_range
-transition_matrix, notes_in_range = generate_pitch_matrix(difficulty_level)
+
+#Start Caching Code
+# Initialize cache for pitch matrices and notes_in_range
+def initialize_pitch_cache():
+    cache = {}
+    difficulty_levels = range(1, 11)  # Difficulty levels 1 through 10
+
+    for difficulty_level in difficulty_levels:
+        matrix, notes_in_range = generate_pitch_matrix(difficulty_level)
+        cache[difficulty_level] = (matrix, notes_in_range)
+
+    return cache
+
+# Save the cache to a file with gzip compression
+def save_cache_with_compression(cache, filename):
+    with gzip.open(filename, 'wb') as f:
+        pickle.dump(cache, f)
+
+# Load the cache from a file with gzip decompression
+def load_cache_with_decompression(filename):
+    if os.path.exists(filename):
+        with gzip.open(filename, 'rb') as f:
+            return pickle.load(f)
+    return None
+
+cache_filename = 'pitch_cache.pkl.gz'
+pitch_cache = load_cache_with_decompression(cache_filename)
+
+if pitch_cache is None:
+    print("Generating new pitch cache...")
+    pitch_cache = initialize_pitch_cache()
+    save_cache_with_compression(pitch_cache, cache_filename)
+#End Caching
+
+# Retrieve pitch matrix and notes_in_range for the given difficulty level
+cached_data = pitch_cache.get(difficulty_level)
+if cached_data:
+    transition_matrix, notes_in_range = cached_data
+    print("Pitch matrix and notes_in_range retrieved from cache")
+else:
+    print("Data not found in cache, generating...")
+    transition_matrix, notes_in_range = generate_pitch_matrix(difficulty_level)
 
 # Function to count non-rest notes in the LilyPond rhythm string
 def count_non_rest_notes(lilypond_string):

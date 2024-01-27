@@ -1,4 +1,7 @@
 import numpy as np
+import pickle
+import os
+import gzip
 #In Progress: Have the 40 most common transition matrices cached. 2/4 through 5/4 with difficulty levels 1-10 each.
 
 def get_basics(): 
@@ -197,7 +200,7 @@ def generate_rhythm_matrix(rhythmic_elements, rhythmic_values, difficulty_level,
             transition_matrix[i] = [0 for _ in transition_matrix[i]]  # Keeping it as all 0s
 
     print("Transition Matrix:\n", transition_matrix)
-    return transition_matrix, states, num_states
+    return transition_matrix, states
 
 def get_time_signature():
     while True:
@@ -233,7 +236,49 @@ def get_difficulty_level():
 
 difficulty_level = get_difficulty_level()
 
-transition_matrix, states, num_states = generate_rhythm_matrix(rhythmic_elements, rhythmic_values, difficulty_level, time_signature)
+#Caching
+# Initialize the cache with both matrices and states
+def initialize_cache():
+    cache = {}
+    difficulty_levels = range(1, 11)  # Difficulty levels 1 through 10
+    time_signatures = [(2, 4), (3, 4), (4, 4), (5, 4)]  # Time signatures
+
+    for difficulty_level in difficulty_levels:
+        for time_signature in time_signatures:
+            matrix, states = generate_rhythm_matrix(rhythmic_elements, rhythmic_values, difficulty_level, time_signature)
+            cache[(difficulty_level, time_signature)] = (matrix, states)
+
+    return cache
+
+# Save the cache to a file
+def save_cache(cache, filename):
+    with gzip.open(filename, 'wb') as f:
+        pickle.dump(cache, f)
+
+# Load the cache from a file
+def load_cache(filename):
+    if os.path.exists(filename):
+        with gzip.open(filename, 'rb') as f:
+            return pickle.load(f)
+    return None
+
+cache_filename = 'rhythm_cache.pkl'
+cache = load_cache(cache_filename)
+
+if cache is None:
+    print("Generating new cache...")
+    cache = initialize_cache()
+    save_cache(cache, cache_filename)
+#End Caching
+
+data = cache.get((difficulty_level, (time_signature[0], time_signature[1])))
+if data:
+    transition_matrix, states = data
+    print("Matrix and states retrieved from cache")
+else:
+    print("Matrix and states not found in cache")
+    transition_matrix, states = generate_rhythm_matrix(rhythmic_elements, rhythmic_values, difficulty_level, time_signature)
+num_states = len(states)
 
 def normalize_beat(beat, time_signature):
     # Normalize the beat to the nearest expected value, such as 1, 2, 3, or 4 in a 4/4 time signature
