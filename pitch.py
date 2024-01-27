@@ -4,6 +4,7 @@ import random
 import pickle
 import gzip
 import os
+from cache_utils import save_cache_with_compression, load_cache_with_decompression
 
 #Goal: In rhythm, caching 40 different matrices, for 2/4 through 5/4 time signatures with difficulty levels between 1 and 10 inclusive, integers.
 #Goal: In pitch, caching 10 different matrices, for the difficulty levels; time signature doesn't matter. These generate much faster, so it isn't a big deal either way.
@@ -85,23 +86,12 @@ def initialize_pitch_cache():
 
     return cache
 
-# Save the cache to a file with gzip compression
-def save_cache_with_compression(cache, filename):
-    with gzip.open(filename, 'wb') as f:
-        pickle.dump(cache, f)
-
-# Load the cache from a file with gzip decompression
-def load_cache_with_decompression(filename):
-    if os.path.exists(filename):
-        with gzip.open(filename, 'rb') as f:
-            return pickle.load(f)
-    return None
-
 cache_filename = 'pitch_cache.pkl.gz'
 pitch_cache = load_cache_with_decompression(cache_filename)
 
+#Seeing as the pitch catche is so small and takes so little time to generate, we might as well generate it on first boot.
 if pitch_cache is None:
-    print("Generating new pitch cache...")
+    print("Generating new pitch cache for the most common configurations. This will take only approximately 1 second.")
     pitch_cache = initialize_pitch_cache()
     save_cache_with_compression(pitch_cache, cache_filename)
 #End Caching

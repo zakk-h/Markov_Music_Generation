@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 import os
 import gzip
+from cache_utils import save_cache_with_compression, load_cache_with_decompression
 #In Progress: Have the 40 most common transition matrices cached. 2/4 through 5/4 with difficulty levels 1-10 each.
 
 def get_basics(): 
@@ -250,34 +251,32 @@ def initialize_cache():
 
     return cache
 
-# Save the cache to a file
-def save_cache(cache, filename):
-    with gzip.open(filename, 'wb') as f:
-        pickle.dump(cache, f)
-
-# Load the cache from a file
-def load_cache(filename):
-    if os.path.exists(filename):
-        with gzip.open(filename, 'rb') as f:
-            return pickle.load(f)
-    return None
-
 cache_filename = 'rhythm_cache.pkl'
-cache = load_cache(cache_filename)
+cache = load_cache_with_decompression(cache_filename)
 
 if cache is None:
-    print("Generating new cache...")
-    cache = initialize_cache()
-    save_cache(cache, cache_filename)
+    user_response = input("No rhythm cache found. Would you like to generate a new cache? (Yes/No): ").strip().lower()
+    if user_response in ['y', 'yes']:
+        print("Generating new cache. This will take several minutes.")
+        cache = initialize_cache()
+        save_cache_with_compression(cache, cache_filename)
+    else:
+        print("Proceeding without generating cache.")
+        # As cache is not generated, set cache to an empty dictionary to prevent AttributeError
+        cache = {}
+else:
+    print("Cache loaded successfully.")
 #End Caching
 
+# Retrieve data from cache or generate it if not in cache
 data = cache.get((difficulty_level, (time_signature[0], time_signature[1])))
 if data:
     transition_matrix, states = data
     print("Matrix and states retrieved from cache")
 else:
-    print("Matrix and states not found in cache")
+    print("Matrix and states not found in cache, generating...")
     transition_matrix, states = generate_rhythm_matrix(rhythmic_elements, rhythmic_values, difficulty_level, time_signature)
+
 num_states = len(states)
 
 def normalize_beat(beat, time_signature):
