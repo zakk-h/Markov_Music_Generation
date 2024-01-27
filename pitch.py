@@ -1,7 +1,10 @@
-from rhythm import return_for_pitch_generation
+from rhythm import return_for_pitch_generation, get_basics
 import numpy as np
 import random
 
+#Goal: In rhythm, caching 40 different matrices, for 2/4 through 5/4 time signatures with difficulty levels between 1 and 10 inclusive, integers.
+#Goal: In pitch, caching 10 different matrices, for the difficulty levels; time signature doesn't matter. These generate much faster, so it isn't a big deal either way.
+#rhythmic_elements, rhythmic_values = get_basics()
 # Fetch rhythm work
 lilypond_rhythm_string, time_signature, difficulty_level = return_for_pitch_generation()
 
@@ -9,61 +12,64 @@ lilypond_rhythm_string, time_signature, difficulty_level = return_for_pitch_gene
 print(lilypond_rhythm_string)
 print(time_signature)
 
-notes = [1, 1.5, 2, 2.5, 3, 4, 4.5, 5, 5.5, 6, 6.5, 7] #notes in the scale are integers, accidentals are x.5
-notes_per_octave = len(notes)
-lower_note_bound = 1 #lower bound of range
+def generate_pitch_matrix(difficulty_level): 
+    notes = [1, 1.5, 2, 2.5, 3, 4, 4.5, 5, 5.5, 6, 6.5, 7] #notes in the scale are integers, accidentals are x.5
+    notes_per_octave = len(notes)
+    lower_note_bound = 1 #lower bound of range
 
-if round(difficulty_level*2.6,1) > 2.1*notes_per_octave: num_notes = 2.1*notes_per_octave
-else: num_notes = round(difficulty_level*2.6,1) # or a user controlled value. a consequence of this value is the upper bound for the range
+    if round(difficulty_level*2.6,1) > 2.1*notes_per_octave: num_notes = 2.1*notes_per_octave
+    else: num_notes = round(difficulty_level*2.6,1) # or a user controlled value. a consequence of this value is the upper bound for the range
 
-if difficulty_level*2 > notes[-1]-notes[0]: max_jump = notes[-1]-notes[0]
-else: max_jump = difficulty_level*2
+    if difficulty_level*2 > notes[-1]-notes[0]: max_jump = notes[-1]-notes[0]
+    else: max_jump = difficulty_level*2
 
-def generate_possible_notes_in_range(notes, lower_note_bound, num_notes):
-    generated_notes = []
-    start_index = notes.index(lower_note_bound)
+    def generate_possible_notes_in_range(notes, lower_note_bound, num_notes):
+        generated_notes = []
+        start_index = notes.index(lower_note_bound)
 
-    octave = 0
+        octave = 0
 
-    while num_notes > 0:
-        for i in range(start_index, len(notes)):
-            generated_notes.append(notes[i]+octave)
-            num_notes -= 1
-            if num_notes == 0:
-                break
-        start_index = 0  # Reset to start of the notes array for the next cycle
-        octave+=7
+        while num_notes > 0:
+            for i in range(start_index, len(notes)):
+                generated_notes.append(notes[i]+octave)
+                num_notes -= 1
+                if num_notes == 0:
+                    break
+            start_index = 0  # Reset to start of the notes array for the next cycle
+            octave+=7
 
-    return generated_notes
+        return generated_notes
 
-notes_in_range = generate_possible_notes_in_range(notes, lower_note_bound, num_notes)
+    notes_in_range = generate_possible_notes_in_range(notes, lower_note_bound, num_notes)
 
-# Initialize the transition matrix
-num_states = len(notes_in_range)
-transition_matrix = np.zeros((num_states, num_states))
+    # Initialize the transition matrix
+    num_states = len(notes_in_range)
+    transition_matrix = np.zeros((num_states, num_states))
 
-# Assign probabilities
-for i in range(num_states):
-    for j in range(num_states):
-        note_diff = abs(notes_in_range[j] - notes_in_range[i])
-        if note_diff <= max_jump:
-            if note_diff == 0:
-                transition_matrix[i][j] = 1 / difficulty_level
-            else:
-                transition_matrix[i][j] = 1 / (note_diff**1.2) #encouraging notes to be in close proximity to each other
-                if not notes_in_range[j].is_integer():
-                    transition_matrix[i][j] /= 5 #reducing frequency of accidentals
+    # Assign probabilities
+    for i in range(num_states):
+        for j in range(num_states):
+            note_diff = abs(notes_in_range[j] - notes_in_range[i])
+            if note_diff <= max_jump:
+                if note_diff == 0:
+                    transition_matrix[i][j] = 1 / difficulty_level
+                else:
+                    transition_matrix[i][j] = 1 / (note_diff**1.2) #encouraging notes to be in close proximity to each other
+                    if not notes_in_range[j].is_integer():
+                        transition_matrix[i][j] /= 5 #reducing frequency of accidentals
 
-# Normalize the rows of the matrix
-for i in range(num_states):
-    row_sum = np.sum(transition_matrix[i])
-    if row_sum > 0:
-        transition_matrix[i] = transition_matrix[i] / row_sum
-    else:
-        # If a row sums to 0, assign equal probabilities to all transitions
-        transition_matrix[i] = np.ones(num_states) / num_states
+    # Normalize the rows of the matrix
+    for i in range(num_states):
+        row_sum = np.sum(transition_matrix[i])
+        if row_sum > 0:
+            transition_matrix[i] = transition_matrix[i] / row_sum
+        else:
+            # If a row sums to 0, assign equal probabilities to all transitions
+            transition_matrix[i] = np.ones(num_states) / num_states
 
-print(transition_matrix)
+    print(transition_matrix)
+    return transition_matrix, notes_in_range
+transition_matrix, notes_in_range = generate_pitch_matrix(difficulty_level)
 
 # Function to count non-rest notes in the LilyPond rhythm string
 def count_non_rest_notes(lilypond_string):
