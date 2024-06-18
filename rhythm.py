@@ -3,7 +3,6 @@ import pickle
 import os
 import gzip
 from cache_utils import save_cache_with_compression, load_cache_with_decompression
-#In Progress: Have the 40 most common transition matrices cached. 2/4 through 5/4 with difficulty levels 1-10 each.
 
 def get_basics(): 
     rhythmic_elements = ["Whole", "Half", "Quarter", "Eighth", "Sixteenth", "Dotted Whole", "Dotted Half", "Dotted Quarter", "Dotted Eighth", "Dotted Sixteenth", "Whole Triplet 1", "Whole Triplet 2", "Whole Triplet 3", "Half Triplet 1", "Half Triplet 2", "Half Triplet 3", "Quarter Triplet 1", "Quarter Triplet 2", "Quarter Triplet 3", "Eighth Triplet 1", "Eighth Triplet 2", "Eighth Triplet 3", "Whole Rest", "Half Rest", "Quarter Rest", "Eighth Rest", "Sixteenth Rest", "Dotted Whole Rest", "Dotted Half Rest", "Dotted Quarter Rest", "Dotted Eighth Rest", "Dotted Sixteenth Rest", "Whole Triplet 1 Rest", "Whole Triplet 2 Rest", "Whole Triplet 3 Rest", "Half Triplet 1 Rest", "Half Triplet 2 Rest", "Half Triplet 3 Rest", "Quarter Triplet 1 Rest", "Quarter Triplet 2 Rest", "Quarter Triplet 3 Rest", "Eighth Triplet 1 Rest", "Eighth Triplet 2 Rest", "Eighth Triplet 3 Rest"     ]
@@ -497,7 +496,6 @@ def display_music_lilypond(lilypond_string):
     else:
         print("Error: PNG file not found. Check LilyPond compilation.")
 
-# Example usage
 display_music_lilypond(lilypond_string)
 
 def return_for_pitch_generation():
